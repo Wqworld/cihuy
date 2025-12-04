@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "module": "commonjs",        // <--- PENTING: Harus commonjs
+    "rootDir": "./",
+    "outDir": "./dist",
+    "esModuleInterop": true,     // <--- PENTING: Harus true
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
