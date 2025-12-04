@@ -2,53 +2,57 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/lib/axios"; // Pastikan axios.ts baseURl port 5000
+import api from "@/lib/axios"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner"; // Pakai sonner biar keren
+import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
+import { Label } from "@/components/ui/label";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [nama, setNama] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+ const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 1. Tembak Backend
       const response = await api.post("/auth/login", {
-        nama,      // Sesuaikan dengan backend (nama/username)
+        username,
         password
       });
 
-      // 2. AMBIL TOKEN (Anti-Jebakan)
-      // Cek di dalam data.data.token ATAU data.token
-      const token = response.data.data?.token || response.data.token;
+      // DEBUG: Cek isi respon di console browser (F12)
+      console.log("Respon dari server:", response.data);
 
-      // 3. Validasi Keras
+      // PERBAIKAN DI SINI:
+      // Karena backend mengirim { data: "ey..." }, kita ambil response.data.data langsung
+      const token = response.data.data;
+
       if (!token) {
         throw new Error("Token tidak ditemukan dalam respon server");
       }
 
-      // 4. Simpan & Redirect
       localStorage.setItem("token", token);
       toast.success("Login Berhasil! Mengalihkan...");
       
-      // Kasih jeda dikit biar toast kebaca
       setTimeout(() => {
         router.replace("/dashboard");
       }, 500);
 
-    } catch (error) {
+    } catch (error) { // Gunakan any atau type error yang sesuai
+      console.error("Error Login:", error);
+      
       if (error instanceof AxiosError) {
-        const msg = error.response?.data?.message || "Gagal Login, periksa nama/password";
-        console.error(msg);
+        const msg = error.response?.data?.message || "Gagal Login, periksa koneksi backend";
         toast.error(msg);
+      } else {
+        console.error("Error Login:", error);
       }
     } finally {
       setLoading(false);
@@ -56,46 +60,75 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-100">
-      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-lg border border-gray-200">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#68868C]">KasirKu</h1>
-          <p className="text-gray-500">Silakan masuk untuk melanjutkan</p>
+     <div className="w-full h-screen justify-center items-center flex bg-[#EDEDED]">
+      <div className="md:w-220 md:h-100 flex border-[#68868C] border-3 rounded-xl overflow-hidden shadow-2xl bg-white">
+        
+        <div className="bg-[#3E3E3E] rounded-lg max-w-60 w-full justify-center items-center flex flex-col text-center outline-3 outline-[#68868C] p-6 relative z-10">
+          <div className="relative w-32 h-32 mb-4">
+             <Image
+                src="/Logo.png"
+                alt="logo"
+                fill
+                className="object-contain"
+                priority
+             />
+          </div>
+          <h1 className="font-bold text-2xl text-white tracking-wide">KasirKu</h1>
+          <h2 className="font-medium text-xs text-gray-300 mt-2">
+            Kasir Optimal untuk sajian istimewa
+          </h2>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-            <Input 
-              placeholder="Masukkan username..." 
-              value={nama}
-              onChange={(e) => setNama(e.target.value)}
-              className="h-12 border-2 focus:border-[#68868C]"
-              required
-            />
+        <div className="w-full m-15 mx-10 border-l-4 border-[#405559] px-8 py-10 flex flex-col justify-center">
+          <div className="mb-6">
+              <p className="text-2xl font-bold text-[#405559] mb-2">
+                SELAMAT DATANG KEMBALI!
+              </p>
+              <p className="text-sm font-medium text-[#535555] leading-relaxed">
+                Login untuk memberikan pelayanan terbaik atau kelola restoran Anda
+                dengan data yang akurat.
+              </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <Input 
-              type="password"
-              placeholder="Masukkan password..." 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-12 border-2 focus:border-[#68868C]"
-              required
-            />
-          </div>
+          <div className="w-full max-w-sm">
+            <form onSubmit={handleLogin} className="space-y-5">
+              
+              <div className="space-y-2">
+                <Label className="text-[#68868C] font-bold">Username</Label>
+                <Input
+                  type="text"
+                  placeholder="Masukkan username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="border-[#68868C] border-2 focus:border-[#405559] focus:ring-1 focus:ring-[#405559] text-[#4d4d4d] h-11"
+                  required
+                />
+              </div>
 
-          <Button 
-            type="submit" 
-            className="w-full h-12 text-lg bg-[#468284] hover:bg-[#3a6d6f]"
-            disabled={loading}
-          >
-            {loading ? <Loader2 className="animate-spin mr-2" /> : "Masuk"}
-          </Button>
-        </form>
+              <div className="space-y-1">
+                <Label className="text-[#68868C] font-bold">Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Masukkan password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="border-[#68868C] border-2 focus:border-[#405559] focus:ring-1 focus:ring-[#405559] text-[#4d4d4d] h-11"
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-9 bg-[#68868C] hover:bg-[#405559] text-white font-bold text-md rounded-lg transition-all duration-300 shadow-md hover:shadow-lg "
+                disabled={loading}
+              >
+                {loading ? "Memproses..." : "Masuk Sekarang"}
+              </Button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
+
   );
 }

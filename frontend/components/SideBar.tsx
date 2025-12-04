@@ -43,7 +43,7 @@ export default function SideBar() {
     },
     {
       nama: "Produk",
-      link: "/dashboard/produk", 
+      link: "/dashboard/produk",
       icon: MenuSquareIcon,
       role: ["ADMIN", "KASIR"],
     },
@@ -59,14 +59,14 @@ export default function SideBar() {
       icon: Users2,
       role: ["ADMIN", "KASIR"],
     },
-    { 
-      nama: "Kelola User", 
-      link: "/dashboard/user", 
-      icon: UserCog2, 
-      role: ["ADMIN"] 
+    {
+      nama: "Kelola User",
+      link: "/dashboard/user",
+      icon: UserCog2,
+      role: ["ADMIN"],
     },
     {
-      nama: "Transaksi",
+      nama: " Transaksi",
       link: "/dashboard/transaksi",
       icon: Timer,
       role: ["ADMIN", "KASIR"],
@@ -110,28 +110,27 @@ export default function SideBar() {
       localStorage.removeItem("token");
       router.push("/login");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="bg-[#F5F5F5] h-screen w-64 fixed left-0 top-0 border-r-4 border-[#68868C] flex flex-col px-4 py-6 z-50">
-      
+    <div className="bg-[#F5F5F5] h-screen w-70 fixed left-0 top-0 border-r-4 border-[#68868C] flex flex-col px-4 py-6 z-50 print:hidden">
       {/* Header Logo */}
       <header className="flex flex-col justify-center items-center text-center mb-6">
-        {/* Pastikan gambar ada di public/assets/mainLogo.png atau ganti src */}
-        <div className="relative w-20 h-20">
-             <Image
-              src="/assets/mainLogo.png" 
+        <div className="flex items-center gap-4">
+          <div className="relative w-20 h-20">
+            <Image
+              src="/Logo.png"
               alt="logo"
               fill
               className="object-contain"
               priority
-              onError={(e) => e.currentTarget.style.display = 'none'} // Sembunyikan kalau gambar 404
+              onError={(e) => (e.currentTarget.style.display = "none")}
             />
+          </div>
+
+          <h1 className="text-3xl font-bold text-[#68868C]">KasirKu</h1>
         </div>
-        <h1 className="text-3xl font-bold mt-2 text-[#68868C]">
-          KasirKu
-        </h1>
       </header>
 
       {/* Menu List */}
@@ -149,7 +148,7 @@ export default function SideBar() {
               className={`${
                 isActive
                   ? "bg-[#68868C] text-white shadow-md"
-                  : "bg-[#468284] text-white hover:bg-[#68868C] hover:scale-105"
+                  : "bg-[#468284] text-white hover:bg-[#68868C] "
               } flex items-center gap-3 p-3 rounded-xl transition-all font-medium border-2 border-[#404748]`}
             >
               <item.icon size={26} />
@@ -170,7 +169,7 @@ export default function SideBar() {
             <span className="text-lg">Logout</span>
           </button>
         )}
-        
+
         <button
           onClick={() => setLogoutPopup(!logoutPopup)}
           className="w-full bg-[#468284] text-white p-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#68868C] transition-all border-2 border-[#404748]"

@@ -1,59 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import Image from "next/image";
-import { Plus, Trash2, Pencil, Search, Image as ImageIcon } from "lucide-react";
-
-// UI Components
+import { jwtDecode } from "jwt-decode"; 
+import { Plus, Trash2, Pencil } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { AxiosError } from "axios";
 
-// Interface
+interface TokenPayload { role: string; }
+
 interface Produk {
   id: number;
   nama: string;
   harga: number;
   stok: number;
   gambar: string;
+  kategoriId: number;
   kategori: { id: number; nama: string };
-  kategoriId: number; // Buat keperluan edit
 }
 
-interface Kategori {
-  id: number;
-  nama: string;
-}
+interface Kategori { id: number; nama: string; }
 
 export default function ProdukPage() {
   const [data, setData] = useState<Produk[]>([]);
   const [kategoris, setKategoris] = useState<Kategori[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [userRole, setUserRole] = useState("");
 
-  // State Form
+  // Form State
+  const [isEdit, setIsEdit] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  
   const [form, setForm] = useState({
     nama: "",
     harga: "",
     stok: "",
     kategoriId: "",
   });
-  const [file, setFile] = useState<File | null>(null); // State khusus File
+  const [file, setFile] = useState<File | null>(null);
 
-  // URL Gambar Backend
-  const BASE_URL = "http://localhost:5000/uploads/";
-
-  // --- 1. FETCH DATA ---
+  const BASE_URL = "http://localhost:3000/api/upload/"; 
   const fetchData = async () => {
     try {
       const [resProd, resKat] = await Promise.all([
@@ -62,197 +64,230 @@ export default function ProdukPage() {
       ]);
       setData(resProd.data.data || []);
       setKategoris(resKat.data.data || []);
-    } catch (error) {
-      toast.error("Gagal ambil data");
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      toast.error("Gagal load data");
     }
   };
 
   useEffect(() => {
     fetchData();
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode<TokenPayload>(token);
+        setUserRole(decoded.role.toUpperCase());
+      } catch (error) { console.error("Gagal decode"); }
+    }
   }, []);
-
-  // --- 2. HANDLE SUBMIT (CREATE) ---
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitLoading(true);
-
-    try {
-      
-      const formData = new FormData();
-      formData.append("nama", form.nama);
-      formData.append("harga", form.harga);
-      formData.append("stok", form.stok);
-      formData.append("kategoriId", form.kategoriId); 
-      
-      if (file) {
-        formData.append("gambar", file); 
-      }
-
-      await api.post("/produk", formData);
-
-      toast.success("Produk berhasil disimpan!");
-      setModalOpen(false);
-      resetForm();
-      fetchData();
-
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        console.error(error);
-        toast.error(error.response?.data?.message || "Gagal simpan produk");
-      }
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  // --- 3. HANDLE DELETE ---
-  const handleDelete = async (id: number) => {
-    if (!confirm("Hapus produk ini?")) return;
-    try {
-      await api.delete(`/produk/${id}`);
-      toast.success("Produk dihapus");
-      fetchData();
-    } catch (error) {
-      toast.error("Gagal hapus" + error);
-    }
-  };
 
   const resetForm = () => {
     setForm({ nama: "", harga: "", stok: "", kategoriId: "" });
     setFile(null);
+    setIsEdit(false);
+    setEditId(null);
+  };
+
+  const handleEdit = (item: Produk) => {
+    setForm({
+        nama: item.nama,
+        harga: item.harga.toString(),
+        stok: item.stok.toString(),
+        kategoriId: item.kategoriId.toString()
+    });
+    setEditId(item.id);
+    setIsEdit(true);
+    setOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingSubmit(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append("nama", form.nama);
+      formData.append("harga", form.harga);
+      formData.append("stok", form.stok);
+      formData.append("kategoriId", form.kategoriId);
+      
+      if (file) {
+        formData.append("gambar", file);
+      }
+
+      if (isEdit && editId) {
+        
+        await api.put(`/produk/${editId}`, formData); 
+        toast.success("Produk berhasil diupdate");
+      } else {
+        await api.post("/produk", formData);
+        toast.success("Produk berhasil disimpan");
+      }
+
+      setOpen(false);
+      resetForm();
+      fetchData();
+    } catch (e) {
+      if (e instanceof AxiosError) {
+        toast.error(e.response?.data?.message || "Gagal simpan produk");
+      }
+    } finally {
+      setLoadingSubmit(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/produk/${id}`);
+      toast.success("Terhapus");
+      fetchData();
+    } catch (e) {
+      toast.error("Gagal hapus");
+    }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">Data Produk</h1>
-        
-        {/* Modal Tambah */}
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm} className="bg-[#468284] hover:bg-[#366365]">
-              <Plus className="mr-2 h-4 w-4" /> Tambah Produk
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Tambah Produk Baru</DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4 py-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Nama Produk</label>
-                <Input 
-                  required 
-                  value={form.nama} 
-                  onChange={e => setForm({...form, nama: e.target.value})}
-                  placeholder="Contoh: Nasi Goreng" 
+        <h1 className="text-2xl font-bold text-gray-800">Produk Menu</h1>
+
+        {userRole === "ADMIN" && (
+          <Dialog open={open} onOpenChange={(val) => {
+             setOpen(val);
+             if(!val) resetForm(); 
+          }}>
+            <DialogTrigger asChild>
+              <Button className="bg-[#468284] hover:bg-[#366365]">
+                <Plus className="mr-2 h-4 w-4" /> Tambah Produk
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{isEdit ? "Edit Produk" : "Tambah Produk"}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <Input
+                  placeholder="Nama Produk"
+                  value={form.nama}
+                  onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                  required
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                    <label className="text-sm font-medium">Harga (Rp)</label>
-                    <Input 
-                      required type="number"
-                      value={form.harga} 
-                      onChange={e => setForm({...form, harga: e.target.value})}
-                    />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Harga"
+                    value={form.harga}
+                    onChange={(e) => setForm({ ...form, harga: e.target.value })}
+                    required
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Stok"
+                    value={form.stok}
+                    onChange={(e) => setForm({ ...form, stok: e.target.value })}
+                    required
+                  />
                 </div>
-                <div className="grid gap-2">
-                    <label className="text-sm font-medium">Stok</label>
-                    <Input 
-                      required type="number"
-                      value={form.stok} 
-                      onChange={e => setForm({...form, stok: e.target.value})}
-                    />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Kategori</label>
-                <Select onValueChange={(val) => setForm({...form, kategoriId: val})}>
+                
+                <Select 
+                    value={form.kategoriId} 
+                    onValueChange={(val) => setForm({ ...form, kategoriId: val })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih Kategori" />
                   </SelectTrigger>
                   <SelectContent>
-                    {kategoris.map((kat) => (
-                        <SelectItem key={kat.id} value={kat.id.toString()}>
-                            {kat.nama}
-                        </SelectItem>
+                    {kategoris.map((k) => (
+                      <SelectItem key={k.id} value={k.id.toString()}>
+                        {k.nama}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
 
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Gambar Produk</label>
-                <div className="flex items-center gap-2">
-                    <Input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-                        className="cursor-pointer"
+                <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Gambar (Kosongkan jika tidak diganti)</label>
+                    <Input
+                    type="file"
+                    onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
                     />
                 </div>
-                <p className="text-xs text-gray-500">*Format: JPG, PNG (Max 2MB)</p>
-              </div>
 
-              <Button type="submit" className="w-full bg-[#468284]" disabled={submitLoading}>
-                {submitLoading ? "Mengupload..." : "Simpan Produk"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <Button
+                  type="submit"
+                  disabled={loadingSubmit}
+                  className="w-full bg-[#468284]"
+                >
+                  {loadingSubmit ? "Menyimpan..." : (isEdit ? "Update" : "Simpan")}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
-      {/* Tabel Produk */}
-      <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">Img</TableHead>
-              <TableHead>Nama Produk</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Harga</TableHead>
-              <TableHead>Stok</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                    <div className="w-10 h-10 relative rounded overflow-hidden bg-gray-100">
-                        <Image 
-                            src={item.gambar ? `${BASE_URL}${item.gambar}` : "/placeholder.png"} 
-                            alt="" fill className="object-cover" unoptimized 
-                            onError={(e) => e.currentTarget.src = "https://placehold.co/100?text=No"}
-                        />
-                    </div>
-                </TableCell>
-                <TableCell className="font-medium">{item.nama}</TableCell>
-                <TableCell>
-                    <span className="px-2 py-1 rounded-full bg-gray-100 text-xs font-bold text-gray-600">
-                        {item.kategori?.nama || "-"}
-                    </span>
-                </TableCell>
-                <TableCell>Rp {item.harga.toLocaleString("id-ID")}</TableCell>
-                <TableCell>{item.stok}</TableCell>
-                <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(item.id)}>
-                        <Trash2 size={16} />
+      <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+        {data.map((item) => (
+          <Card
+            key={item.id}
+            className="max-w-60 w-full group relative overflow-hidden hover:shadow-md transition-all duration-300 border-[#468284] border-4 p-2"
+          >
+            <div className="relative aspect-square w-full h-30 bg-gray-50 border-[#468284] border-4 rounded-sm">
+              <Image
+                unoptimized
+                src={item.gambar && item.gambar !== 'default.png' ? `${BASE_URL}${item.gambar}` : "/placeholder.png"}
+                alt={item.nama}
+                fill
+                className="object-cover"
+                onError={(e) => { e.currentTarget.src = "https://placehold.co/200?text=No+Img"; }}
+              />
+              <div className="absolute top-1 right-1">
+                <Badge variant={item.stok > 0 ? "secondary" : "destructive"} className="text-[10px] px-1.5 h-5 opacity-90">
+                  {item.stok}
+                </Badge>
+              </div>
+            </div>
+
+            <CardContent className="p-2 ">
+              <h3 className="font-bold text-3xl -mt-4 leading-tight line-clamp-2" title={item.nama}>
+                {item.nama}
+              </h3>
+              <p className="text-md font-medium text-muted-foreground uppercase truncate">
+                {item.kategori?.nama || "-"}
+              </p>
+
+              <div className="flex items-end justify-between pt-1">
+                <p className="font-bold text-xl text-[#468284]">
+                  {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(item.harga)}
+                </p>
+
+                {userRole === "ADMIN" && (
+                  <div className="flex gap-1 -mr-2">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500 hover:text-blue-700" onClick={() => handleEdit(item)}>
+                        <Pencil size={14} />
                     </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {data.length === 0 && !loading && (
-            <div className="text-center p-10 text-gray-500">Belum ada produk</div>
-        )}
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-red-600">
+                            <Trash2 size={14} />
+                        </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus item ini?</AlertDialogTitle>
+                            <AlertDialogDescription>{item.nama} akan dihapus permanen.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(item.id)} className="bg-red-500 hover:bg-red-600">Hapus</AlertDialogAction>
+                        </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

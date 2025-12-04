@@ -8,7 +8,8 @@ import kategoriRoutes from "./routes/kategoriRoutes"
 import memberRoutes from "./routes/memberRoutes"
 import kasirRoutes from "./routes/kasirRoutes"
 import produkRoutes from "./routes/produkRoutes";
-import transaksiRoutes from "./routes/transaksiRoutes"
+import transaksiRoutes from "./routes/transaksiRoutes";
+import laporanRoutes from "./routes/laporanRoutes";
 
 const app: Express = express();
 dotenv.config();
@@ -25,6 +26,7 @@ app.use("/api/member", memberRoutes);
 app.use("/api/kasir", kasirRoutes);
 app.use("/api/produk", produkRoutes);
 app.use("/api/transaksi", transaksiRoutes);
+app.use("/api/laporan", laporanRoutes);
 
 
 app.get("/", (req: Request, res: Response) => {
